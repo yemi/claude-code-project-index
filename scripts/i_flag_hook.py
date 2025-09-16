@@ -512,34 +512,53 @@ Focus on providing actionable file locations and insights."""
             else:
                 return ('ssh_file_large', str(fallback_path))
         
-        # First try xclip directly (most reliable for Linux)
+        # First try native clipboard commands based on OS
+        # Check for macOS pbcopy
         try:
-            result = subprocess.run(['which', 'xclip'], capture_output=True)
+            result = subprocess.run(['which', 'pbcopy'], capture_output=True)
             if result.returncode == 0:
-                # Use xclip with a virtual display if needed
-                env = os.environ.copy()
-                if not env.get('DISPLAY'):
-                    # Check if Xvfb is running on :99
-                    xvfb_check = subprocess.run(['pgrep', '-f', 'Xvfb.*:99'], capture_output=True)
-                    if xvfb_check.returncode != 0:
-                        # Start Xvfb if not running
-                        subprocess.Popen(['Xvfb', ':99', '-screen', '0', '1024x768x24'],
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        time.sleep(0.5)
-                    env['DISPLAY'] = ':99'
-                
-                # Copy to clipboard using xclip
-                proc = subprocess.Popen(['xclip', '-selection', 'clipboard'],
-                                      stdin=subprocess.PIPE, env=env,
+                # Use pbcopy for macOS
+                proc = subprocess.Popen(['pbcopy'],
+                                      stdin=subprocess.PIPE,
                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 proc.communicate(clipboard_content.encode('utf-8'))
                 if proc.returncode == 0:
                     clipboard_success = True
-                    print(f"✅ Copied to clipboard via xclip: {len(clipboard_content)} chars", file=sys.stderr)
+                    print(f"✅ Copied to clipboard via pbcopy: {len(clipboard_content)} chars", file=sys.stderr)
                     print(f"📋 Ready to paste into Gemini, Claude.ai, ChatGPT, or other AI", file=sys.stderr)
                     return ('clipboard', len(clipboard_content))
         except:
             pass
+
+        # Try xclip for Linux
+        if not clipboard_success:
+            try:
+                result = subprocess.run(['which', 'xclip'], capture_output=True)
+                if result.returncode == 0:
+                    # Use xclip with a virtual display if needed
+                    env = os.environ.copy()
+                    if not env.get('DISPLAY'):
+                        # Check if Xvfb is running on :99
+                        xvfb_check = subprocess.run(['pgrep', '-f', 'Xvfb.*:99'], capture_output=True)
+                        if xvfb_check.returncode != 0:
+                            # Start Xvfb if not running
+                            subprocess.Popen(['Xvfb', ':99', '-screen', '0', '1024x768x24'],
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            time.sleep(0.5)
+                        env['DISPLAY'] = ':99'
+
+                    # Copy to clipboard using xclip
+                    proc = subprocess.Popen(['xclip', '-selection', 'clipboard'],
+                                          stdin=subprocess.PIPE, env=env,
+                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    proc.communicate(clipboard_content.encode('utf-8'))
+                    if proc.returncode == 0:
+                        clipboard_success = True
+                        print(f"✅ Copied to clipboard via xclip: {len(clipboard_content)} chars", file=sys.stderr)
+                        print(f"📋 Ready to paste into Gemini, Claude.ai, ChatGPT, or other AI", file=sys.stderr)
+                        return ('clipboard', len(clipboard_content))
+            except:
+                pass
         
         # Fallback to pyperclip if xclip didn't work
         if not clipboard_success:
