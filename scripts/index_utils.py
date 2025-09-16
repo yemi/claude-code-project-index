@@ -1367,10 +1367,14 @@ def matches_gitignore_pattern(path: Path, patterns: Set[str], root_path: Path) -
 
 def should_index_file(path: Path, root_path: Path = None) -> bool:
     """Check if we should index this file."""
+    # Skip CLAUDE.md files at any level
+    if path.name == 'CLAUDE.md':
+        return False
+
     # Must be a code or markdown file
     if not (path.suffix in CODE_EXTENSIONS or path.suffix in MARKDOWN_EXTENSIONS):
         return False
-    
+
     # Skip if in hardcoded ignored directory (for safety)
     for part in path.parts:
         if part in IGNORE_DIRS:
